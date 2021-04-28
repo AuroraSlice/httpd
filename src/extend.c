@@ -1,4 +1,5 @@
 #include "extend.h"
+#include "common.h"
 
 int loadConfig(config_t *config)
 {
@@ -8,6 +9,7 @@ int loadConfig(config_t *config)
 
     int i;
     char *val;
+    char *end;
 
     if((fp = fopen("../http.conf","rt")) == NULL)
     {
@@ -27,11 +29,35 @@ int loadConfig(config_t *config)
             printf("not found =\n");
             continue;
         }
-        if(memcpy(line, "port", strlen("port")) == 0)
+        val++;
+        end = val;
+
+        while (end!= "\0")
         {
-            config.p
+            end++;
+        }
+
+        if(memcmp(line, "port", strlen("port")) == 0)
+        {
+            memcpy(&config->port, val, end-val);
         } 
         
+        if(memcmp(line, "thread_num", strlen("thread_num")) == 0)
+        {
+            memcpy(&config->thread_num, val, end-val);
+        } 
+
     }
+
+    printf("------载入配置文件------\nport:%d\nthread num:%d\n",config->port, config->thread_num);
+
+    close(fp);
+
+    return OK;
+    
+}
+
+int init_pthread_pool(int pthread_num)
+{
     
 }

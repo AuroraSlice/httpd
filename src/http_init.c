@@ -11,12 +11,22 @@ int main(int argc, char *argv[])
 
     config_t config;
 
-    if(load(&config) == ERROR)
+    /*加载配置*/
+    if(loadConfig(&config) == ERROR)
     {
         printf("load config failed\n");
         return 0;
 
     }
+
+    /*初始化线程池*/
+    if(init_pthread_pool(config.thread_num) == ERROR)
+    {
+        
+    }
+    
+
+
 
     
 
