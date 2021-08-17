@@ -1,4 +1,5 @@
 #include "common.h"
+#include "http.h"
 
 #define MAX_CONN_NUM 10
 
@@ -8,8 +9,8 @@ int init_server_socket(int port)
 
     struct sockaddr_in server_addr = {0};
 
-    server_addr.sin_addr.s_addr = htnol(INADDR_ANY);
-    server_addr.sin_port = htnol(port);
+    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    server_addr.sin_port = htons(port);
     server_addr.sin_family = AF_INET;
 
     sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -35,4 +36,11 @@ int init_server_socket(int port)
 
     return sock;
     
+}
+
+
+/* 处理http请求 */
+void *handle_request(void *arg)
+{
+
 }

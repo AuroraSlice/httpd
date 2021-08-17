@@ -1,7 +1,7 @@
 #include "common.h"
 #include "epoll.h"
 
-int init_epoll(flags)
+int init_epoll(int flags)
 {
     int epfd = 0;
 

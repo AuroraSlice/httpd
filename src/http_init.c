@@ -1,6 +1,7 @@
 #include "common.h"
 #include "pthread_pool.h"
 #include "epoll.h"
+#include "http.h"
 
 
 int main(int argc, char *argv[])
@@ -36,7 +37,7 @@ int main(int argc, char *argv[])
 
     if(ERROR == (sockfd = init_server_socket(config.port)))
     {
-        printf("init server socket failed\n")
+        printf("init server socket failed\n");
         pool_destory();
         return ERROR;
     }
@@ -45,7 +46,7 @@ int main(int argc, char *argv[])
     /*epoll初始化*/
     if(ERROR == (epfd = (init_epoll(0))))
     {
-        printf("init server socket failed\n")
+        printf("init server socket failed\n");
         pool_destory();
         close(sockfd);
         return ERROR;
@@ -62,7 +63,7 @@ int main(int argc, char *argv[])
     event.data.ptr = (void *)request;
     event.events  = EPOLLIN | EPOLLET;
 
-    int ret =  epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &event)
+    int ret =  epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &event);
     if(ERROR == ret)
     {
         printf("epoll add failed\n");

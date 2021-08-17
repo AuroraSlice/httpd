@@ -17,7 +17,7 @@ int loadConfig(config_t *config)
         return ERROR;
     }
 
-    while (fget(line, 512, fp))
+    while (fgets(line, 512, fp))
     {
         while (line[i] == " ") i++;
         if(line[i] == "\n" || line[i] == "#")
@@ -51,7 +51,7 @@ int loadConfig(config_t *config)
 
     printf("------载入配置文件------\nport:%d\nthread num:%d\n",config->port, config->thread_num);
 
-    close(fp);
+    fclose(fp);
 
     return OK;
     
