@@ -2,7 +2,7 @@
 # makefile create 2021/8/14
 #
 
-CC := gcc -std=c99
+CC := gcc
 
 PROG := minihttp
 
@@ -13,11 +13,11 @@ OUTPUT := output
 vpath %.c src
 
 
-obj = http.o http_init.o extend.o
+obj = http.o http_init.o extend.o common.o pthread_pool.o
 
 $(PROG): clean $(obj)
 	mkdir -p $(OUTPUT)
-	$(CC) -o $(OUTPUT)/$(PROG) $(obj) $(CFLAGS)
+	$(CC) -pthread -o $(OUTPUT)/$(PROG) $(obj) $(CFLAGS)
 
 .PHONY : clean
 clean:

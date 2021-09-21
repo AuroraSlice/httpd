@@ -1,173 +1,222 @@
+#include<pthread.h>
 #include "common.h"
+#include "pthread_pool.h"
 
 static pthread_pool *pool = NULL;
 
-int pthread_routine()
+void * pthread_routine()
 {
-    pool->pthread_size++;
+	thread_job job, *tmp = NULL;
 
-    while (TRUE)
-    {
-        pthread_mutex_lock(&(pool->lock));
-        while( 0 == pool->wait_num && FALSE == pool->is_destory)
-        {
-            pthread_cond_wait(&(pool->cond), &(pool->lock));
-        }
+	while(TRUE)
+	{
+		pthread_mutex_lock(&pool->lock);
+		
+		if(!pool->wait_num)//没有任务在等待，等待条件变量
+		{
+			pthread_cond_wait(&pool->notEmpty, &pool->lock);
+		}	
 
-        if(TRUE == pool->is_destory)
-        {
-            pthread_mutex_unlock(&(pool->lock));
-            pthread_exit(NULL);
-        }
+		if(pool->taskQueue)
+		{
+			tmp = pool->taskQueue;
+		
+			job.arg = tmp->arg;
+			job.process = tmp->process;
+			pool->taskQueue = tmp->next;
 
-        pool->wait_num--;
-        thread_job *job = pool->queue;
-        pool->queue = job->next;
-        pthread_mutex_unlock(&(pool->lock));
-        (*(job->process))(job->arg);
-        free(job);
-        job = NULL;
-    }
 
-    pthread_exit(NULL);
-    
+			tmp->next = NULL;
+			free(tmp);
+		}
+
+		pool->current_num++;
+		pool->wait_num--;
+		
+		pthread_mutex_unlock(&pool->lock);
+
+		//执行
+		job.process(job.arg);
+		
+	}
+
+	pthread_exit(NULL);
+	
 }
 
-int pool_destory()
+int pthread_manage()
 {
-    if(pool->is_destory) return ERROR;
+	
+}
 
-    pool->is_destory = TRUE;
+int destory_thread_pool()
+{
 
-    pthread_mutex_lock(&(pool->lock));
-    pthread_cond_broadcast(&(pool->cond));
-    pthread_mutex_unlock(&(pool->lock));
+	printf("destory thread pool.......\n");
 
-    int i = 0；
+	pool->is_destory = TRUE;
 
-    for(i = 0; i < pool->pthread_size; i++)
-    {
-        pthread_join(pool->tid[i], NULL);
-    }
+	//销毁线程池
+	pthread_cond_destroy(&pool->notFull);
+	pthread_cond_destroy(&pool->notEmpty);
+	
+	int i = 0;
+	for(i = 0; i < pool->pthread_size; i++){
+		pthread_join(pool->tid[i], NULL);
+	}
 
-    thread_job *job = NULL;
+	thread_job *head = NULL;
 
-    while(pool->queue != NULL)
-    {
-        job = pool->queue;
-        pool->queue = job->next;
-        free(job);
-    }
+	pthread_mutex_lock(&pool->lock);
 
-    free(pool->tid);
-    pthread_mutex_destory(&(pool->lock));
-    pthread_cond_destory(&(pool->cond));
-    free(pool)
-    pool = NULL;
-    return OK;
+	while(pool->taskQueue != NULL){
+		head = pool->taskQueue;
+		pool->taskQueue = head->next;
+		free(head);
+	}
+	
+	if(pool->tid)
+	{
+		free(pool->tid);
+	}
 
+	pthread_mutex_unlock(&pool->lock);
 
+	pthread_mutex_destroy(&pool->lock);
+	pthread_mutex_destroy(&pool->taskLock);
+
+	if(pool)
+	{
+		free(pool);
+	}
+
+	pool = NULL;
+
+	printf("destory pool finished\n");
+	return OK;
 }
 
 int init_pthread_pool(int pthread_size)
 {
-    if(pthread_size <= 0)
-    {
-        printf("input pthread_size error: %d\n", pool_size);
-        return ERROR;
-    }
+	int i = 0;
 
-    if((pool = (pthread_pool *)malloc(sizeof(pthread))) == NULL )
-    {
-        printf("malloc pthread pool failed\n");
-        return ERROR;
-    }
+	do{
+		pool = (pthread_pool *)malloc(sizeof(pthread_pool));
+		if(pool == NULL)
+		{
+			printf("pthread pool malloc failed\n");
+			break;
+		}
 
-    if(0 != pthread_mutex_init(&(pool->lock), NULL))
-    {
-        printf("init mutex failed\n");
-        free(pool);
-        return ERROR;
-    }
+		pool->tid = (pthread_t *)malloc(sizeof(pthread_t) * pthread_size);
+		if(pool->tid == NULL)
+		{
+			printf("pthread tid malloc failed\n");
+			break;
+		}
 
-    if(0 != pthread_cond_init(&(pool->cond), NULL))
-    {
-        printf("init cond failed\n");
-        pthread_mutex_destory(pool->lock);
-        free(pool);
-        return ERROR;
-    }
+		//pthread_create(&pool->manager, 0, pthread_manage, NULL);
 
-    if(NULL == (pool->tid = (pthread_t *)malloc(pthread_size * sizeof(pthread_t))))
-    {
-        printf("malloc pthread failed\n");
-        pthread_mutex_destory(pool->lock);
-        pthread_cond_destory(pool->cond);
-        free(pool);
-        return ERROR;   
-    }
+		for(i = 0; i <pthread_size; i++)
+		{
+			pthread_create(&pool->tid[i], 0, pthread_routine, NULL);
+		}
+			printf("2222\n");
+		
+		//数据初始化
+		pool->current_num = 0;
+		pool->is_destory =FALSE;
+		pool->pthread_size = pthread_size;
+		pool->wait_num = 0;
 
-    pool->pthread_size = 0;
-    pool->wait_num = 0;
-    pool->is_destory = FALSE;
-    pool->queue = NULL;
 
-    int i = 0;
-    for(i = 0; i < pthread_size; i++)
-    {
-        if(0 != pthread_create(&pool->tid[i], NULL, pthread_routine, NULL))
-        {
-            printf("pthread_create failed\n");
-            pool_destory();
-            return ERROR;
-        }
-    }
+		//初始化锁与条件
+		pthread_mutex_init(&pool->lock, NULL);
+		pthread_mutex_init(&pool->taskLock, NULL);
 
-    /*wait for pthread all created */
-    while(pthread_size != pool->pthread_size){}
 
-    return OK;
+		pthread_cond_init(&pool->notEmpty, NULL);
+		pthread_cond_init(&pool->notFull, NULL);
+
+			printf("1111\n");
+
+		return OK;
+
+	}while(0);
+
+	printf("create pool failed, destory.......\n");
+	
+	//销毁线程池
+	pthread_cond_destroy(&pool->notFull);
+	pthread_cond_destroy(&pool->notEmpty);
+
+	pthread_mutex_destroy(&pool->lock);
+	pthread_mutex_destroy(&pool->taskLock);
+	if(pool->tid)
+	{
+		free(pool->tid);
+	}
+
+	if(pool->taskQueue)
+	{
+		free(pool->taskQueue);
+	}
+
+	if(pool)
+	{
+		free(pool);
+	}
+
+	printf("destory pool finished\n");
+
+	return ERROR;
 }
 
 
-int add_job(void *(*process)(void *arg), void *arg)
+int add_job(void* (*process)(void *), void *arg)
 {
-    thread_job *new_job = NULL;
-    if(NULL == (new_job = (thread_job *)malloc(sizeof(thread_job)) ))
-    {
-        printf("malloc thread_job failed\n");
-        return ERROR;
-    }
+	thread_job *new_job = NULL;
 
-    new_job->process = process;
-    new_job->arg = arg;
-    new_job->next = NULL;
+	if(pool->is_destory)
+	{
+		printf("pool destory, reject\n");
+		return ERROR;
+	}
+	
+	if(NULL == (new_job = (thread_job *)malloc(sizeof(thread_job)) ))
+	{
+		printf("malloc thread_job failed\n");
+		return ERROR;
+	}
 
-    thread_job *job = NULL;
+	new_job->process = process;
+	new_job->arg = arg;
+	new_job->next = NULL;
 
-    pthread_mutex_lock(&(pool->lock));
+	thread_job *job = NULL;
 
-    job = pool->queue;
+	pthread_mutex_lock(&(pool->lock));
 
-    if(job == NULL)
-    {
-        job = new_job;
-    }
-    else
-    {
-        while (job->next != NULL)
-        {
-            job = job->next;
-        }
+	job = pool->taskQueue;
 
-        job->next = job;
-        
-    }
+	if(job == NULL)
+	{
+		job = new_job;
+	}
+	else
+	{
+		while (job->next != NULL)
+		{
+			job = job->next;
+		}
+		
+		job->next = job;
+	}
 
-    pool->wait_num++;
-    pthread_mutex_unlock(&(pool->lock));
+	pool->wait_num++;
+	pthread_mutex_unlock(&(pool->lock));
 
-    pthread_cond_signal(&(pool->cond));
+	pthread_cond_signal(&(pool->notEmpty));
 
-    return OK;
+	return OK;
 }

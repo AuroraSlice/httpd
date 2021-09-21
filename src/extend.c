@@ -1,4 +1,5 @@
 #include "extend.h"
+#include "string.h"
 #include "common.h"
 
 int loadConfig(config_t *config)
@@ -19,8 +20,8 @@ int loadConfig(config_t *config)
 
     while (fgets(line, 512, fp))
     {
-        while (line[i] == " ") i++;
-        if(line[i] == "\n" || line[i] == "#")
+        while (line[i] == ' ') i++;
+        if(line[i] == '\n' || line[i] == '#')
             continue;
 
         val = strstr(line, "=");
@@ -54,10 +55,5 @@ int loadConfig(config_t *config)
     fclose(fp);
 
     return OK;
-    
-}
-
-int init_pthread_pool(int pthread_num)
-{
     
 }
